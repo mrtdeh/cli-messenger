@@ -1,0 +1,167 @@
+syntax = "proto3";
+
+package proto;
+option go_package = ".;proto";
+
+
+// @@@ - client connection request for connect to server
+message Connect {
+  User user = 1;
+  Room room = 2;
+  bool active = 3;
+}
+// user info struct
+message User {
+  string id = 1;
+  string username = 2;
+  string color = 4;
+  bool active = 5;
+}
+// room info struct
+message Room {
+  string name = 1;
+  string server_id = 2;
+}
+
+// close response
+message Close {}
+
+// @@@ - server response to client, can be user token or message
+message ServerResponse{
+  oneof data{
+    TokenResponse token_response = 1;
+    MessageResponse msg_response = 2;
+    ErrorResponse error_response = 3;
+    UserStatusResponse user_status_response = 4;
+  }
+}
+// user status response
+message UserStatusResponse{
+  UserStatus user_status = 1;
+  string name = 2;
+}
+enum UserStatus{
+  join = 0;
+  leave = 1;
+}
+// error response
+message ErrorResponse{
+  string error = 1;
+  int32 code = 2;
+}
+// message response
+message MessageResponse{
+  Message msg = 1;
+  string timestamp = 2;
+  User from = 3;
+}
+// token response
+message TokenResponse{
+  string token = 1;
+}
+
+// @@@ - client request message to server
+message MessageRequest{
+  string token = 1;
+  Message msg = 2;
+  string timestamp = 3;
+}
+
+// message struct which may be TEXT or FILE
+message Message {
+  oneof data{
+    TextMessage text_msg = 1;
+    FileMessage file_msg = 2;
+  }
+}
+// text message
+message TextMessage {
+  string content = 1;
+}
+// file message
+message FileMessage {
+  oneof data{
+    FileInfo info = 1;
+    bytes chunk_data = 2;
+    bool done = 3;
+  }
+}
+// file info struct
+message FileInfo {
+  string name = 1;
+  uint32 size = 2;
+}
+
+
+message PingRequest{}
+message PingResponse{}
+
+message ForwardRequest{
+  string from = 1; // source server 
+  string to = 2; // destination server
+  string room = 3; 
+  ServerResponse server_res = 4;
+}
+
+message ForwardResponse{
+  ServerResponse server_res = 1;
+  string room = 2;
+}
+
+// @@@ - follower connection request for join to master
+message FollowerRequest {
+ oneof data{
+  JoinMessage join_msg = 1; 
+  UpdateMessage update_msg = 2;
+  ForwardRequest forward_msg = 3;
+ }
+}
+message JoinMessage {
+  string id = 1;
+}
+message UpdateMessage {
+  oneof data{
+    NewRooms new_rooms = 1;
+    NewUsers new_users = 2;
+  }
+}
+message NewRooms {
+  repeated Room rooms = 1;
+}
+message NewUsers {
+  repeated User users = 1;
+}
+
+message LeaderResponse {
+  oneof data{
+    ErrorResponse error_msg = 1;
+    UpdateMessage update_msg = 2;
+    ForwardResponse forward_response = 3;
+
+  }
+}
+
+message EmptyRequest{}
+message InfoResponse{
+  string id = 1;
+  bool is_master = 2;
+}
+
+message UserExistRequest {
+  string username = 1; 
+  // bool active = 2;
+}
+message UserExistResponse {
+  bool exist = 1;
+  bool active = 2;
+}
+
+service Broadcast {
+  rpc CreateStream(Connect) returns (stream ServerResponse);
+  rpc BroadcastMessage(stream MessageRequest) returns (Close);
+  rpc Ping(PingRequest) returns (PingResponse);
+
+  rpc GetInfo(EmptyRequest) returns (InfoResponse);
+  rpc Follow(stream FollowerRequest) returns (stream LeaderResponse);
+  rpc UserExist(UserExistRequest) returns (UserExistResponse);
+}
