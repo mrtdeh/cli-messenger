@@ -22,6 +22,9 @@ Advanced messenger in the console. written by go & gRPC, use both server/client 
 
 ## Todo List
 - add markdown support for sending message
+- load the latest 10 messages from the matching chat
+- support for emoji
+
 
 
 
